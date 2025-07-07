@@ -56,6 +56,8 @@ export interface SIPCoreConfig {
     /** Output configuration */
     out: String;
     auto_answer: boolean;
+    microphone_mute_on_incoming: boolean;
+    microphone_mute_on_outgoing: boolean;
     popup_config: Object | null;
     popup_override_component: string | null;
     /** 
@@ -437,6 +439,19 @@ export class SIPCore {
             e.session.on("accepted", (e: IncomingEvent) => {
                 console.info("Call accepted");
                 this.startCallTimer();
+                switch (this.RTCSession?.direction) {
+                    case "incoming":
+                        console.info("Incoming call");
+                        if (this.config.microphone_mute_on_incoming) {
+                            this.RTCSession?.mute({ audio: true });
+                        }
+                    case "outgoing":
+                        console.info("Outgoing call");
+                        if (this.config.microphone_mute_on_outgoing) {
+                            this.RTCSession?.mute({ audio: true });
+                        }
+                        break;
+                }
                 this.stopOutgoingTone();
                 this.stopIncomingRingtone();
                 this.triggerUpdate();
@@ -459,6 +474,9 @@ export class SIPCore {
             switch (e.session.direction) {
                 case "incoming":
                     console.info("Incoming call");
+                    if (this.config.microphone_mute_on_incoming) {
+                        e.session.mute({audio: true});
+                    }
                     this.triggerUpdate();
                     this.playIncomingRingtone();
 
@@ -483,6 +501,9 @@ export class SIPCore {
 
                 case "outgoing":
                     console.info("Outgoing call");
+                    if (this.config.microphone_mute_on_outgoing) {
+                        e.session.mute({audio: true});
+                    }
                     this.playOutgoingTone();
                     this.triggerUpdate();
 
