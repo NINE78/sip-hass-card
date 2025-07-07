@@ -58,6 +58,7 @@ export interface SIPCoreConfig {
     auto_answer: boolean;
     microphone_mute_on_incoming: boolean;
     microphone_mute_on_outgoing: boolean;
+    use_default_audio_devices_only: boolean;
     popup_config: Object | null;
     popup_override_component: string | null;
     /** 
@@ -272,7 +273,7 @@ export class SIPCore {
 
         if (this.config.sip_video) {
             // Request permission to use video devices for later use
-            await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+            await navigator.mediaDevices.getUserMedia({ video: true, audio: !this.config.use_default_audio_devices_only });
         }
 
         console.info(`Connecting to ${this.wssUrl}...`);
@@ -591,6 +592,11 @@ export class SIPCore {
 
     /** Returns a list of audio devices of the specified kind */
     async getAudioDevices(audioKind: AUDIO_DEVICE_KIND) {
+        if (!!this.config.use_default_audio_devices_only && audioKind === AUDIO_DEVICE_KIND.INPUT) {
+            console.info("Using default microphone only, returning empty list for audio input devices");
+            return [];
+        }
+
         // first get permission to use audio devices
         await navigator.mediaDevices.getUserMedia({ audio: true });
 
@@ -611,6 +617,14 @@ export class SIPCore {
         console.info(`Setting audio device ${deviceId} (${audioKind})`);
         switch (audioKind) {
             case AUDIO_DEVICE_KIND.INPUT:
+                if (!!this.config.use_default_audio_devices_only) {
+                    console.info("Using default microphone only, ignoring audio input device change");
+                    this.currentAudioInputId = null;
+                    localStorage.removeItem("sipcore-audio-input");
+                    this.triggerUpdate();
+                    return;
+                }
+                
                 try {
                     await navigator.mediaDevices.getUserMedia({
                         audio: {
